@@ -170,14 +170,25 @@ def parse_elements(elements, ville_defaut: str):
             lat, lon = c.get("lat", ""), c.get("lon", "")
 
         phone = tags.get("phone", "") or tags.get("contact:phone", "") or tags.get("telephone", "")
+        phone = phone.replace(" ", "").replace("+33", "0") if phone else ""
+        if phone and len(phone) == 10:
+            phone = " ".join(phone[i:i+2] for i in range(0, 10, 2))
+
         website = tags.get("website", "") or tags.get("contact:website", "")
         insta = tags.get("contact:instagram", "")
         fb = tags.get("contact:facebook", "")
         email = tags.get("email", "") or tags.get("contact:email", "")
 
+        # Adresse : plusieurs sources de secours
+        num = tags.get("addr:housenumber", "")
+        rue = tags.get("addr:street", "") or tags.get("addr:place", "")
+        adresse = f"{num} {rue}".strip()
+        if not adresse:
+            adresse = tags.get("addr:full", "") or tags.get("addr:suburb", "")
+
         rows.append({
             "Nom": name,
-            "Adresse": f"{tags.get('addr:housenumber', '')} {tags.get('addr:street', '')}".strip(),
+            "Adresse": adresse,
             "Ville": tags.get("addr:city", ville_defaut),
             "Téléphone": phone,
             "Site web": website,
@@ -347,7 +358,7 @@ if st.button("🚀 Générer la liste de prospects", use_container_width=True):
 
     st.markdown("### 👀 Aperçu")
     st.dataframe(
-        df[["Nom", "Adresse", "Ville", "Téléphone", "Instagram"]],
+        df[["Nom", "Adresse", "Téléphone", "Email", "Instagram", "Facebook"]],
         use_container_width=True,
         hide_index=True
     )
