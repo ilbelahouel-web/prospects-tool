@@ -121,7 +121,15 @@ if st.button("🚀 Générer la liste de prospects", use_container_width=True):
     else:
         progress = st.progress(0, text="Connexion à la base OpenStreetMap...")
 
-        OVERPASS_URL = "https://overpass-api.de/api/interpreter"
+        OVERPASS_SERVERS = [
+            "https://overpass-api.de/api/interpreter",
+            "https://overpass.kumi.systems/api/interpreter",
+        ]
+
+        HEADERS = {
+            "User-Agent": "ProspectsTool/1.0 (contact: etudiant-projet)",
+            "Content-Type": "application/x-www-form-urlencoded",
+        }
 
         query = f"""
 [out:json][timeout:45];
@@ -134,9 +142,22 @@ out body center;
 """
 
         try:
-            progress.progress(15, text=f"Recherche des {type_label.split()[1].lower()}s à {ville}...")
-            resp = requests.post(OVERPASS_URL, data={"data": query}, timeout=45)
-            resp.raise_for_status()
+            progress.progress(15, text=f"Recherche des commerces à {ville}...")
+
+            resp = None
+            last_error = None
+            for server in OVERPASS_SERVERS:
+                try:
+                    resp = requests.post(server, data={"data": query}, headers=HEADERS, timeout=45)
+                    resp.raise_for_status()
+                    break
+                except Exception as e:
+                    last_error = e
+                    resp = None
+                    continue
+
+            if resp is None:
+                raise last_error
 
             progress.progress(55, text="Traitement des données...")
             elements = resp.json().get("elements", [])
