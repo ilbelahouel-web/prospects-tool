@@ -81,6 +81,8 @@ NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
 OVERPASS_SERVERS = [
     "https://overpass-api.de/api/interpreter",
     "https://overpass.kumi.systems/api/interpreter",
+    "https://overpass.openstreetmap.fr/api/interpreter",
+    "https://overpass.private.coffee/api/interpreter",
 ]
 
 HEADERS = {
@@ -138,15 +140,17 @@ def query_overpass(lat: float, lon: float, radius: int, osm_filter: str):
 out body center;
 """
     last_error = None
+    errors_detail = []
     for server in OVERPASS_SERVERS:
         try:
             r = requests.post(server, data={"data": query}, headers=HEADERS, timeout=50)
             r.raise_for_status()
             return r.json().get("elements", [])
         except Exception as e:
+            errors_detail.append(f"{server.split('/')[2]} → {type(e).__name__}: {str(e)[:120]}")
             last_error = e
             continue
-    raise last_error
+    raise RuntimeError(" | ".join(errors_detail))
 
 
 def parse_elements(elements, ville_defaut: str):
@@ -267,8 +271,9 @@ if st.button("🚀 Générer la liste de prospects", use_container_width=True):
         )
         try:
             elements = query_overpass(geo["lat"], geo["lon"], radius, osm_filter)
-        except Exception:
-            st.error("❌ Les serveurs OpenStreetMap sont surchargés. Attends 1 minute et réessaie.")
+        except Exception as e:
+            st.error("❌ Aucun serveur n'a répondu. Détail technique :")
+            st.code(str(e), language=None)
             st.stop()
 
         rows = parse_elements(elements, geo["display"])
